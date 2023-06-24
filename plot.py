@@ -7,10 +7,15 @@ import time
 
 fig = plt.figure()
 
-# sensors = ["throttle", "voltage high", "voltage low"]
-# maxVals = [5,          28,             14]
-sensors = ["current"]
-maxVals = [2000]
+sensors = ["clock", "limiter", "throttle", "voltage high", "voltage low", "current", "charge"]
+maxVals = [60 * 60, 5,         5,          28,             14,            60,        37]
+# sensors = ["current"]
+# maxVals = [2000]
+
+recieveTimer = {
+    "max": 5000,
+    "current": 0
+}
 
 def sensorIndex(sensor):
     i = 0
@@ -59,31 +64,36 @@ with open(logFile, "w") as log:
 
     def animate(i):
 
-        dataType = None
         data = None
         dataLine = None
         try:
             if serial.in_waiting > 0:
                 dataLine = serial.readline().decode().strip()
+                parts = dataLine.split(":")
+                prefix = parts[0]
+                entry = parts[1]
 
-                logLines.append(dataLine)
-                if len(logLines) > maxLogLines:
-                    newLogLines = logLines[-maxLogLines:]
-                    logLines.clear()
-                    logLines.extend(newLogLines)
+                if prefix != "DATA":
+                    logLines.append(dataLine)
+                    if len(logLines) > maxLogLines:
+                        newLogLines = logLines[-maxLogLines:]
+                        logLines.clear()
+                        logLines.extend(newLogLines)
 
-                logText = logLines[0]
-                for line in logLines[1:]:
-                    logText = f"{logText}\n{line}"
+                    logText = logLines[0]
+                    for line in logLines[1:]:
+                        logText = f"{logText}\n{line}"
 
-                txtAx.clear()
-                txtAx.text(0, 0, logText, transform = txtAx.transAxes, verticalalignment = "bottom", wrap = True)
-
-                data = [float(i) for i in dataLine.split(",")]
+                    txtAx.clear()
+                    txtAx.text(0, 0, logText, transform = txtAx.transAxes, verticalalignment = "bottom", wrap = True)
+                else:
+                    data = [float(i) for i in entry.split(",")]
         except:
             pass
 
         if data is not None:
+            recieveTimer["current"] = 0
+
             if len(data) != len(sensors):
                 raise ValueError("Data length does not match number of listed sensors")
 
@@ -96,8 +106,6 @@ with open(logFile, "w") as log:
             windowStart = 0
             while xs[windowStart] < newTime - window:
                 windowStart += 1
-
-            # print(windowStart)
 
             newXs = xs[windowStart:]
 
@@ -116,8 +124,12 @@ with open(logFile, "w") as log:
                 axs[i].plot(xs, ys, color=colours(i))
                 axs[i].set_xlim(newTime - window, newTime)
                 axs[i].set_ylim(0, maxVals[i])
+        else:
+            recieveTimer["current"] += 100
+            if recieveTimer["current"] >= recieveTimer["max"]:
+                print("No data recieved")
 
-    serial = Serial("/dev/ttyACM0", 115200)
+    serial = Serial("/dev/ttyACM1", 115200)
 
     ani = animation.FuncAnimation(fig, animate, interval = 100)
     plt.show()

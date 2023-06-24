@@ -4,24 +4,27 @@
 #include <SD.h>
 #include <Wire.h> 
 #include <RTClib.h>
-// #include <LiquidCrystal_I2C.h>
-#include <hd44780.h>                       // main hd44780 header https://github.com/duinoWitchery/hd44780
-#include <hd44780ioClass/hd44780_I2Cexp.h> // i2c expander i/o class header
 
 #include "sensors/check.hpp"
 #include "sensors/clock.hpp"
 #include "sensors/testcounter.hpp"
 #include "sensors/throttle.hpp"
+#include "sensors/potentiometer.hpp"
 #include "sensors/voltage.hpp"
 #include "sensors/ADC_Current.hpp"
+#include "sensors/charge.hpp"
+#include "sensors/temperature.hpp"
 #include "sensors/sensorManager.hpp"
+
+#include "display.hpp"
 
 #define THROTTLE_PIN A14
 #define MIN_THROTTLE 1
 #define MAX_THROTTLE 4.1
 
-// LiquidCrystal_I2C lcd(0x27,20,4); 
-hd44780_I2Cexp lcd(0x27);
+#define LIMITER_PIN A15
+#define MIN_LIMITER 0.1
+#define MAX_LIMITER 4.8
 
 #define PWM_PIN 3
 #define MOTOR_ENABLE 4
@@ -41,23 +44,30 @@ const char filename[] = "log.txt";
 
 File txtFile;
 
+Display display(0x27);
+
 int currentReadings = 0;
 long reading = 0;
 
-// Sensor::Clock clock;
+Sensor::Clock clock;
 // Sensor::CounterSensor counter1;
 // Sensor::CounterSensor counter2;
-// Sensor::Throttle throttle(THROTTLE_PIN, &throttleCallback);
-// Sensor::VoltageSensor batHigh(A0, 0.02713563);
-// Sensor::VoltageSensor batLow(A1, 0.01525241);
-Sensor::CurrentSensor current;
+Sensor::Potentiometer limiter(LIMITER_PIN, true);
+Sensor::Throttle throttle(THROTTLE_PIN, &throttleCallback);
+Sensor::VoltageSensor batHigh(A0, 0.02713563);
+Sensor::VoltageSensor batLow(A1, 0.01525241);
+Sensor::CurrentSensor current(-0.34456141, 0.00685451);
+Sensor::TemperatureSensor temperature(A11);
 // Sensor::CPUMonitor* monitor;
-int sensorCount = 1;
+//  AND CHARGE MONITOR
+int sensorCount = 8;
 
 const int time_per_reading = 100;
 const int readings = 10;
 
 Sensor::SensorManager manager(sensorCount, time_per_reading * readings);
+
+Sensor::ChargeMonitor charge(&manager, &current, 36.0);
 
 bool sdStatus = false;
 bool loraStatus = false;
@@ -81,13 +91,8 @@ void errorCallback(char* message) {
         Serial.println("lora transmitted");
     }
 
-    if (lcdStatus == 0) {
-        for (int i = 0; i < strlen(message); i += 20 * 4) {
-            lcd.clear();
-            lcd.setCursor(0, 0);
-            lcd.write(&(message[i]), min(20 * 4, strlen(message) - i));
-            delay(2000);
-        }
+    if (display.status() == 0) {
+        display.printError(message);
     }
 }
 
@@ -100,10 +105,7 @@ void setup() {
 
     Serial.begin(115200);
 
-    lcdStatus = lcd.begin(20, 4);
-    CHECK(lcdStatus == 0, "LCD initialisation failed");
-    lcd.backlight();
-    lcd.lineWrap();
+    display.setup();
     
     // lcd.setCursor(0, 0);
     // lcd.write("aaa");
@@ -113,9 +115,9 @@ void setup() {
 
     // RAISE("whoops");
     
-    // clock.setup();
-    // clock.setReadRate(1000);
-    // manager.addSensor(&clock);
+    clock.setup();
+    clock.setReadRate(1000);
+    manager.addSensor(&clock);
 
     // counter1.setReadRate(1000);
     // manager.addSensor(&counter1);
@@ -123,15 +125,22 @@ void setup() {
     // counter2.setReadRate(2000);
     // manager.addSensor(&counter2);
 
-    // throttle.setTickRate(10);
-    // throttle.setReadRate(50);
-    // manager.addSensor(&throttle);
+    limiter.setTickRate(10);
+    limiter.setReadRate(50);
+    manager.addSensor(&limiter);
 
-    // batHigh.setReadRate(1000);
-    // manager.addSensor(&batHigh);
+    throttle.setTickRate(10);
+    throttle.setReadRate(50);
+    manager.addSensor(&throttle);
 
-    // batLow.setReadRate(1000);
-    // manager.addSensor(&batLow);
+    batHigh.setReadRate(1000);
+    manager.addSensor(&batHigh);
+
+    batLow.setReadRate(1000);
+    manager.addSensor(&batLow);
+
+    temperature.setReadRate(1000);
+    manager.addSensor(&temperature);
 
     // monitor = manager.getMonitor();
     // manager.addSensor(monitor);
@@ -139,6 +148,9 @@ void setup() {
     current.setReadRate(1000);
     current.setup();
     manager.addSensor(&current);
+
+    charge.setReadRate(1000);
+    manager.addSensor(&charge);
 
     manager.setReadCallback(&readCallback);
 
@@ -176,6 +188,15 @@ void loop() {
 }
 
 void readCallback(double* results) {
+    double vl = manager.getLastRead(&batLow);
+    double vh = manager.getLastRead(&batHigh) - vl;
+    display.showVoltageL(vl);
+    display.showVoltageH(vh);
+    display.showCurrent(manager.getLastRead(&current));
+    display.showCharge(manager.getLastRead(&charge));
+    display.showTemperature(manager.getLastRead(&temperature));
+    display.showClock(manager.getLastRead(&clock));
+
     size_t size = sensorCount * sizeof(double);
     uint8_t data[size + 1];
     data[0] = dataMessage;
@@ -197,40 +218,30 @@ void readCallback(double* results) {
 }
 
 void throttleCallback(double voltage) {
+    double scaledVoltage = (voltage - MIN_THROTTLE) / (MAX_THROTTLE - MIN_THROTTLE);
 
-    int pwm_amount = ((voltage - MIN_THROTTLE) / (MAX_THROTTLE - MIN_THROTTLE)) * 255;
+    double limiterVoltage = manager.getLastRead(&limiter);
+    double scaledLimiterVoltage = (limiterVoltage - MIN_LIMITER) / (MAX_LIMITER - MIN_LIMITER);
 
-    if (pwm_amount < 0) {
-        pwm_amount = 0;
+    if (scaledLimiterVoltage < 0) {
+        scaledLimiterVoltage = 0;
     }
-    else if (pwm_amount > 255) {
-        pwm_amount = 255;
+    else if (scaledLimiterVoltage > 1) {
+        scaledLimiterVoltage = 1;
     }
-    
-    Serial.println(pwm_amount);
+
+    if (scaledVoltage < 0) {
+        scaledVoltage = 0;
+    }
+    else if (scaledVoltage > scaledLimiterVoltage) {
+        scaledVoltage = scaledLimiterVoltage;
+    }
+
+    display.showLimiter(scaledLimiterVoltage);
+    display.showThrottle(scaledVoltage);
+
+    int pwm_amount = scaledVoltage * 255;
 
     analogWrite(PWM_PIN, pwm_amount);
-    
-    // double results[sensorCount];
-
-    // results[0] = voltage;
-    // for (int i = 1; i < sensorCount; i++) {
-    //     results[i] = manager.getLastRead(i);
-    // }
-
-    // rf95.send((uint8_t*)results, sensorCount * sizeof(double));
-    // rf95.waitPacketSent();
-
-    // for (int i = 0; i < sensorCount; i++) {
-    //     if (i > 0) {
-    //         Serial.print(",");
-    //         txtFile.print(",");
-    //     }
-    //     Serial.print(results[i]);
-    //     txtFile.print(results[i]);
-    // }
-    // Serial.println();
-    // txtFile.println();
-    // txtFile.flush();
 }
 
