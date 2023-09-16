@@ -26,7 +26,7 @@
 #define MIN_LIMITER 0.1
 #define MAX_LIMITER 4.8
 
-#define PWM_PIN 18
+#define PWM_PIN 3
 #define MOTOR_ENABLE 4
 
 #define RFM95_CS  6
