@@ -1,6 +1,6 @@
 
 #include <SPI.h>
-// #include <RH_RF95.h>
+#include <RH_RF95.h>
 #include <SD.h>
 #include <Wire.h> 
 #include <RTClib.h>
@@ -29,13 +29,13 @@
 #define PWM_PIN 18
 #define MOTOR_ENABLE 4
 
-// #define RFM95_CS  6
-// #define RFM95_INT 2
-// #define RFM95_RST 7
+#define RFM95_CS  6
+#define RFM95_INT 2
+#define RFM95_RST 7
 
-// #define RF95_FREQ 434.0
+#define RF95_FREQ 434.0
 
-// RH_RF95 rf95(RFM95_CS, RFM95_INT);
+RH_RF95 rf95(RFM95_CS, RFM95_INT);
 enum messageType : uint8_t {dataMessage, errorMessage};
 
 #define SD_CS 14
@@ -70,7 +70,7 @@ Sensor::SensorManager manager(sensorCount, time_per_reading * readings);
 Sensor::ChargeMonitor charge(&manager, &current, 36.0);
 
 bool sdStatus = false;
-// bool loraStatus = false;
+bool loraStatus = false;
 int lcdStatus = 1;
 void errorCallback(char* message) {
     Serial.println(message);
@@ -81,15 +81,15 @@ void errorCallback(char* message) {
         Serial.println("logged to text file");
     }
 
-    // if (loraStatus) {
-    //     size_t size = (strlen(message) + 1) * sizeof(char);
-    //     uint8_t data[size + 1];
-    //     data[0] = errorMessage;
-    //     memcpy(&(data[1]), message, size);
-    //     rf95.send(data, size + 1);
-    //     rf95.waitPacketSent();
-    //     Serial.println("lora transmitted");
-    // }
+    if (loraStatus) {
+        size_t size = (strlen(message) + 1) * sizeof(char);
+        uint8_t data[size + 1];
+        data[0] = errorMessage;
+        memcpy(&(data[1]), message, size);
+        rf95.send(data, size + 1);
+        rf95.waitPacketSent();
+        Serial.println("lora transmitted");
+    }
 
     if (display.status() == 0) {
         display.printError(message);
@@ -97,8 +97,8 @@ void errorCallback(char* message) {
 }
 
 void setup() {
-    // pinMode(RFM95_RST, OUTPUT);
-    // digitalWrite(RFM95_RST, HIGH);
+    pinMode(RFM95_RST, OUTPUT);
+    digitalWrite(RFM95_RST, HIGH);
 
     pinMode(PWM_PIN, OUTPUT);
     pinMode(MOTOR_ENABLE, OUTPUT);
@@ -161,20 +161,20 @@ void setup() {
     CHECK(txtFile, "Error opening log file.");
 
     delay(100);
-    // digitalWrite(RFM95_RST, LOW);
-    // delay(10);
-    // digitalWrite(RFM95_RST, HIGH);
-    // delay(10);
+    digitalWrite(RFM95_RST, LOW);
+    delay(10);
+    digitalWrite(RFM95_RST, HIGH);
+    delay(10);
 
-    // bool initStatus = rf95.init();
-    // CHECK(initStatus == true, "LoRa initialisation failed.");
+    bool initStatus = rf95.init();
+    CHECK(initStatus == true, "LoRa initialisation failed.");
 
-    // bool freqStatus = rf95.setFrequency(RF95_FREQ);
-    // CHECK(freqStatus == true, "LoRa frequency set failed.");
+    bool freqStatus = rf95.setFrequency(RF95_FREQ);
+    CHECK(freqStatus == true, "LoRa frequency set failed.");
 
-    // loraStatus = initStatus && freqStatus;
+    loraStatus = initStatus && freqStatus;
 
-    // rf95.setTxPower(23, false);
+    rf95.setTxPower(23, false);
 
     digitalWrite(MOTOR_ENABLE, LOW);
 
@@ -201,8 +201,8 @@ void readCallback(double* results) {
     uint8_t data[size + 1];
     data[0] = dataMessage;
     memcpy(&(data[1]), results, size);
-    // rf95.send(data, size + 1);
-    // rf95.waitPacketSent();
+    rf95.send(data, size + 1);
+    rf95.waitPacketSent();
 
     for (int i = 0; i < sensorCount; i++) {
         if (i > 0) {

@@ -19,6 +19,7 @@
                 "/home/jedpreist/.arduino15/packages/arduino/hardware/avr/1.8.6/cores/arduino",
                 "/home/jedpreist/.arduino15/packages/arduino/hardware/avr/1.8.6/variants/mega",
                 "/home/jedpreist/.arduino15/packages/arduino/hardware/avr/1.8.6/libraries/SPI/src",
+                "/home/jedpreist/Arduino/libraries/RadioHead-master",
                 "/home/jedpreist/Arduino/libraries/SD/src",
                 "/home/jedpreist/.arduino15/packages/arduino/hardware/avr/1.8.6/libraries/Wire/src",
                 "/home/jedpreist/Arduino/libraries/RTClib/src",
