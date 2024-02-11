@@ -16,194 +16,188 @@
 #include "sensors/temperature.hpp"
 #include "sensors/sensorManager.hpp"
 
-#include "display.hpp"
+//  The display isnt used
+//#include "display.hpp"
 
-#define THROTTLE_PIN A14
-#define MIN_THROTTLE 1
-#define MAX_THROTTLE 4.1
+//  Throttle and limiter arent used
+// #define THROTTLE_PIN A14
+// #define MIN_THROTTLE 1
+// #define MAX_THROTTLE 4.1
 
-#define LIMITER_PIN A15
-#define MIN_LIMITER 0.1
-#define MAX_LIMITER 4.8
+// #define LIMITER_PIN A15
+// #define MIN_LIMITER 0.1
+// #define MAX_LIMITER 4.8
 
-#define PWM_PIN 3
-#define MOTOR_ENABLE 4
+//  Motor control pins arent used
+// #define PWM_PIN 3
+// #define MOTOR_ENABLE 4
 
+//  Radio pins
 #define RFM95_CS  6
 #define RFM95_INT 2
 #define RFM95_RST 7
 
+//  Radio frequency
 #define RF95_FREQ 434.0
 
+//  Setup radio
 RH_RF95 rf95(RFM95_CS, RFM95_INT);
+
+//  Message type for radio messages
 enum messageType : uint8_t {dataMessage, errorMessage};
 
+//  SD card reader pin
 #define SD_CS 14
 
+//  SD card filename
 const char filename[] = "log.txt";
 
+//  File written to the SD card
 File txtFile;
 
-Display display(0x27);
-
-int currentReadings = 0;
-long reading = 0;
-
+//  Initialise the sensors with their calibration values
 Sensor::Clock clock;
-// Sensor::CounterSensor counter1;
-// Sensor::CounterSensor counter2;
-Sensor::Potentiometer limiter(LIMITER_PIN, true);
-Sensor::Throttle throttle(THROTTLE_PIN, &throttleCallback);
 Sensor::VoltageSensor batHigh(A0, 0.02713563);
 Sensor::VoltageSensor batLow(A1, 0.01525241);
 Sensor::CurrentSensor current(-0.34456141, 0.00685451);
 Sensor::TemperatureSensor temperature(A11);
-// Sensor::CPUMonitor* monitor;
-//  AND CHARGE MONITOR
-int sensorCount = 8;
+int sensorCount = 5;
 
-const int time_per_reading = 100;
-const int readings = 10;
+//  tick and callback rates
+const int time_per_tick = 100;
+const int time_per_callback = 1000;
 
-Sensor::SensorManager manager(sensorCount, time_per_reading * readings);
+//  Initialise sensor manager with the number of sensors and callback rate
+Sensor::SensorManager manager(sensorCount, time_per_callback);
 
-Sensor::ChargeMonitor charge(&manager, &current, 36.0);
-
+//  Status of the SD card reader and radio
 bool sdStatus = false;
 bool loraStatus = false;
-int lcdStatus = 1;
+
+//  Called for any error messages that occur
 void errorCallback(char* message) {
+    //  Print the message to serial
     Serial.println(message);
 
+    //  Print the message to the text file if the SD card reader is ok
     if (sdStatus && txtFile) {
         txtFile.println(message);
         txtFile.flush();
         Serial.println("logged to text file");
     }
 
+    //  Send the message over radio if the radio is ok
     if (loraStatus) {
+        //  Calculate the radio packet size
         size_t size = (strlen(message) + 1) * sizeof(char);
+        //  Create an array for the packet
         uint8_t data[size + 1];
+
+        //  First byte is the message type, an error message in this case
         data[0] = errorMessage;
+
+        //  Copy the message into the rest of the packet
         memcpy(&(data[1]), message, size);
+
+        //  Send the packet
         rf95.send(data, size + 1);
         rf95.waitPacketSent();
-        Serial.println("lora transmitted");
-    }
 
-    if (display.status() == 0) {
-        display.printError(message);
+        Serial.println("lora transmitted");
     }
 }
 
 void setup() {
+    //  I can't remember how the radio reset pin works, but it do
     pinMode(RFM95_RST, OUTPUT);
     digitalWrite(RFM95_RST, HIGH);
 
-    pinMode(PWM_PIN, OUTPUT);
-    pinMode(MOTOR_ENABLE, OUTPUT);
-
+    //  Start serial
     Serial.begin(115200);
-
-    display.setup();
     
-    // lcd.setCursor(0, 0);
-    // lcd.write("aaa");
-
-    // lcd.setCursor(0, 1);
-    // lcd.write("bbb");
-
-    // RAISE("whoops");
-    
+    //  Set the clock up and add it to the sensor manager
     clock.setup();
-    clock.setReadRate(1000);
+    clock.setReportRate(1000);
     manager.addSensor(&clock);
 
-    // counter1.setReadRate(1000);
-    // manager.addSensor(&counter1);
-
-    // counter2.setReadRate(2000);
-    // manager.addSensor(&counter2);
-
-    limiter.setTickRate(10);
-    limiter.setReadRate(50);
-    manager.addSensor(&limiter);
-
-    throttle.setTickRate(10);
-    throttle.setReadRate(50);
-    manager.addSensor(&throttle);
-
-    batHigh.setReadRate(1000);
+    //  Add the high (24ish V) battery voltage sensor to the manager
+    batHigh.setReportRate(1000);
     manager.addSensor(&batHigh);
 
-    batLow.setReadRate(1000);
+    //  Add the low (12ish V) battery voltage sensor to the manager
+    batLow.setReportRate(1000);
     manager.addSensor(&batLow);
 
-    temperature.setReadRate(1000);
+    //  Add the temperature sensor to the manager
+    temperature.setReportRate(1000);
     manager.addSensor(&temperature);
 
-    // monitor = manager.getMonitor();
-    // manager.addSensor(monitor);
-
-    current.setReadRate(1000);
+    //  Add the current sensor to the manager
+    current.setReportRate(1000);
     current.setup();
     manager.addSensor(&current);
 
-    charge.setReadRate(1000);
-    manager.addSensor(&charge);
+    //  Set the report callback
+    manager.setReportCallback(&reportCallback);
 
-    manager.setReadCallback(&readCallback);
-
+    //  Start the SD card reader and check it started correctly
     sdStatus = SD.begin(SD_CS);
     CHECK(sdStatus == true, "SD initialisation failed.");
 
+    //  Open a text file and check it opened correctly
     txtFile = SD.open(filename, O_READ | O_WRITE | O_CREAT);
     CHECK(txtFile, "Error opening log file.");
 
+
+    //  I can't remember how the radio reset pin works, but it do
     delay(100);
     digitalWrite(RFM95_RST, LOW);
     delay(10);
     digitalWrite(RFM95_RST, HIGH);
     delay(10);
 
+    //  Start the radio and check it started correctly
     bool initStatus = rf95.init();
     CHECK(initStatus == true, "LoRa initialisation failed.");
 
+    //  Set the frequency and check it was set correctly
     bool freqStatus = rf95.setFrequency(RF95_FREQ);
     CHECK(freqStatus == true, "LoRa frequency set failed.");
 
+    //  The radio works if both were ok
     loraStatus = initStatus && freqStatus;
 
+    //  Set radio power
     rf95.setTxPower(23, false);
 
-    digitalWrite(MOTOR_ENABLE, LOW);
-
+    //  Handle any errors that occured, by calling the error callback function
     HANDLE_ERRS(errorCallback);
 }
 
 void loop() {
-    // Serial.println("B");
-    manager.spin(5000);
-    // Serial.println(manager.getLastRead(&counter1));
+    //  Spin the manager, so that it schedules and handles sensor readings
+    manager.spin();
 }
 
-void readCallback(double* results) {
-    double vl = manager.getLastRead(&batLow);
-    double vh = manager.getLastRead(&batHigh) - vl;
-    display.showVoltageL(vl);
-    display.showVoltageH(vh);
-    display.showCurrent(manager.getLastRead(&current));
-    display.showCharge(manager.getLastRead(&charge));
-    display.showTemperature(manager.getLastRead(&temperature));
-    display.showClock(manager.getLastRead(&clock));
+//  Called by the sensor manager to pass readings back to the main program
+void reportCallback(double* results) {
 
+    //  Calculate the radio packet size
     size_t size = sensorCount * sizeof(double);
+    //  Create an array for the packet
     uint8_t data[size + 1];
+
+    //  First byte is the message type, a data message in this case
     data[0] = dataMessage;
+
+    //  Copy the message into the rest of the packet
     memcpy(&(data[1]), results, size);
+
+    //  Send the packet
     rf95.send(data, size + 1);
     rf95.waitPacketSent();
 
+    //  Print all the readings to serial and the SD card text file
     for (int i = 0; i < sensorCount; i++) {
         if (i > 0) {
             Serial.print(",");
@@ -215,33 +209,5 @@ void readCallback(double* results) {
     Serial.println();
     txtFile.println();
     txtFile.flush();
-}
-
-void throttleCallback(double voltage) {
-    double scaledVoltage = (voltage - MIN_THROTTLE) / (MAX_THROTTLE - MIN_THROTTLE);
-
-    double limiterVoltage = manager.getLastRead(&limiter);
-    double scaledLimiterVoltage = (limiterVoltage - MIN_LIMITER) / (MAX_LIMITER - MIN_LIMITER);
-
-    if (scaledLimiterVoltage < 0) {
-        scaledLimiterVoltage = 0;
-    }
-    else if (scaledLimiterVoltage > 1) {
-        scaledLimiterVoltage = 1;
-    }
-
-    if (scaledVoltage < 0) {
-        scaledVoltage = 0;
-    }
-    else if (scaledVoltage > scaledLimiterVoltage) {
-        scaledVoltage = scaledLimiterVoltage;
-    }
-
-    display.showLimiter(scaledLimiterVoltage);
-    display.showThrottle(scaledVoltage);
-
-    int pwm_amount = scaledVoltage * 255;
-
-    analogWrite(PWM_PIN, pwm_amount);
 }
 
