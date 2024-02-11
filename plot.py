@@ -7,8 +7,13 @@ import time
 
 fig = plt.figure()
 
+
+#   I cant remember how anything works
+#   But if you put the list of sensors and their max values in here then it works
+#   aaaa
 sensors = ["clock", "limiter", "throttle", "voltage high", "voltage low", "current", "charge"]
 maxVals = [60 * 60, 5,         5,          28,             14,            60,        37]
+
 # sensors = ["current"]
 # maxVals = [2000]
 
