@@ -15,6 +15,7 @@
 #include "sensors/charge.hpp"
 #include "sensors/temperature.hpp"
 #include "sensors/sensorManager.hpp"
+#include "sensors/pushButton.hpp"
 
 //  The display isnt used
 //#include "display.hpp"
@@ -50,18 +51,21 @@ enum messageType : uint8_t {dataMessage, errorMessage};
 #define SD_CS 14
 
 //  SD card filename
-const char filename[] = "log.txt";
+const char filename[] = "log.csv";
 
 //  File written to the SD card
 File txtFile;
 
 //  Initialise the sensors with their calibration values
 Sensor::Clock clock;
-Sensor::VoltageSensor batHigh(A0, 0.02713563);
-Sensor::VoltageSensor batLow(A1, 0.01525241);
-Sensor::CurrentSensor current(-0.34456141, 0.00685451);
-Sensor::TemperatureSensor temperature(A11);
-int sensorCount = 5;
+Sensor::PushButton pitBut(19);
+Sensor::VoltageSensor batVolt(A12, 5.6440677966101);
+Sensor::CurrentSensor current(A11, A14, 1, 1); // -0.34456141, 0.00685451
+// Sensor::HallEffectSensor hallspeed(D18);
+Sensor::TemperatureSensor motTemp(A8);
+Sensor::TemperatureSensor pcbTemp(A3);
+
+int sensorCount = 6;
 
 //  tick and callback rates
 const int time_per_tick = 100;
@@ -114,28 +118,35 @@ void setup() {
 
     //  Start serial
     Serial.begin(115200);
+
+    // Start I2C for LCD
+    //Wire.begin();
     
     //  Set the clock up and add it to the sensor manager
     clock.setup();
     clock.setReportRate(1000);
     manager.addSensor(&clock);
 
+    //  Add the pit confirm push button to the manager
+    pitBut.setReportRate(1000);
+    manager.addSensor(&pitBut);
+
     //  Add the high (24ish V) battery voltage sensor to the manager
-    batHigh.setReportRate(1000);
-    manager.addSensor(&batHigh);
-
-    //  Add the low (12ish V) battery voltage sensor to the manager
-    batLow.setReportRate(1000);
-    manager.addSensor(&batLow);
-
-    //  Add the temperature sensor to the manager
-    temperature.setReportRate(1000);
-    manager.addSensor(&temperature);
+    batVolt.setReportRate(1000);
+    manager.addSensor(&batVolt);
 
     //  Add the current sensor to the manager
     current.setReportRate(1000);
     current.setup();
     manager.addSensor(&current);
+
+    //  Add the motor temperature sensor to the manager
+    motTemp.setReportRate(1000);
+    manager.addSensor(&motTemp);
+
+    //  Add the PCB temperature sensor to the manager
+    pcbTemp.setReportRate(1000);
+    manager.addSensor(&pcbTemp);
 
     //  Set the report callback
     manager.setReportCallback(&reportCallback);
@@ -145,8 +156,14 @@ void setup() {
     CHECK(sdStatus == true, "SD initialisation failed.");
 
     //  Open a text file and check it opened correctly
-    txtFile = SD.open(filename, O_READ | O_WRITE | O_CREAT);
+    txtFile = SD.open(filename, O_READ | O_WRITE | O_CREAT | O_APPEND);
     CHECK(txtFile, "Error opening log file.");
+
+    // Add headers to text file
+    if(txtFile) {
+      txtFile.println("clock,pitBut,voltage,current,motTemp,pcbTemp");
+    }
+
 
 
     //  I can't remember how the radio reset pin works, but it do
@@ -175,13 +192,12 @@ void setup() {
 }
 
 void loop() {
-    //  Spin the manager, so that it schedules and handles sensor readings
-    manager.spin();
+  //  Spin the manager, so that it schedules and handles sensor readings
+  manager.spin();
 }
 
 //  Called by the sensor manager to pass readings back to the main program
 void reportCallback(double* results) {
-
     //  Calculate the radio packet size
     size_t size = sensorCount * sizeof(double);
     //  Create an array for the packet
@@ -210,4 +226,6 @@ void reportCallback(double* results) {
     txtFile.println();
     txtFile.flush();
 }
+
+
 
