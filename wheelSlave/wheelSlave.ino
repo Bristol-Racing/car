@@ -26,53 +26,59 @@ void receiveEvent(int howMany) {
     switch (ledNumber) {
       case 1:
         switch (state) {
-          case 0: // off state
+          case 0: // Off state
             color = strip.Color(0,0,0);
             break;
-          case 1: // regular data log indicator
+          case 1: // SD logging state
             color = strip.Color(0,0,255);
             break;
-          case 2: // fault inject indicator
-            color = strip.Color(255,0,255);
+          case 2: // Fault injection state
+            color = strip.Color(255,0,0);
             break;
-          case 8: // startup colour
-            color = strip.Color(255,102,178);
+          case 8: // Startup state
+            color = strip.Color(128,0,128);
+            break;
         }
-        strip.setPixelColor(0, color); 
+        strip.setPixelColor(0, color);
         strip.show();
         break;
       case 2:
         switch (state) {
-          case 0: // off state
+          case 0: // Off state
             color = strip.Color(0,0,0);
             break;
-          case 1: // regular data log indicator
-            color = strip.Color(0,0,255);
+          case 1: // Good temp state
+            color = strip.Color(0,255,0);
             break;
-          case 2: // fault inject indicator
-            color = strip.Color(255,0,255);
+          case 2: // Medium temp state
+            color = strip.Color(255,191,0);
             break;
-          case 8:
-            color = strip.Color(255,102,178);
+          case 3: // Bad temp state
+            color = strip.Color(255,0,0);
+            break;
+          case 8: // Startup state
+            color = strip.Color(128,0,128);
+            break;
         }
-        strip.setPixelColor(1, color); 
+        strip.setPixelColor(1, color);
         strip.show();
         break;
       case 3:
         switch (state) {
-          case 0: // off state
+          case 0: // Off state
             color = strip.Color(0,0,0);
             break;
-          case 1: // regular data log indicator
-            color = strip.Color(0,0,255);
+          case 1: // Button on
+            color = strip.Color(0,255,0);
             break;
-          case 2: // fault inject indicator
-            color = strip.Color(255,0,255);
+          case 2: // Fault injection state
+            color = strip.Color(255,0,0);
             break;
-          case 8:
-            color = strip.Color(255,102,178);
+          case 8: // Startup state
+            color = strip.Color(128,0,128);
+            break;
         }
-        strip.setPixelColor(2, color); 
+        strip.setPixelColor(2, color);
         strip.show();
         break;
     }
