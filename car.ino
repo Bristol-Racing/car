@@ -9,8 +9,8 @@
 #include "sensors/voltage.hpp"
 #include "sensors/ADC_Current.hpp"
 #include "sensors/temperature.hpp"
-#include "sensors/sensorManager.hpp"
 #include "sensors/pushButton.hpp"
+#include "sensors/sensorManager.hpp"
 
 #define SD_CS 14  //  SD card reader pin
 const char filename[] = "log.csv";//  SD card filename
@@ -18,19 +18,16 @@ File txtFile;//  File written to the SD card
 
 //  Initialise the sensors with their calibration values
 int sensorCount = 6;
+const int time_per_tick = 100;      //  tick rate milli
+const int time_per_callback = 1000; // callback rates milli
+Sensor::SensorManager manager(sensorCount, time_per_callback);//  Initialise sensor manager with the number of sensors and callback rate
 Sensor::Clock clock;
 Sensor::PushButton pitBut(19);
 Sensor::VoltageSensor batVolt(A12, 5.6440677966101);
-Sensor::CurrentSensor current(A11, A14, 1, 1); // -0.34456141, 0.00685451
+Sensor::CurrentSensor current(A11, A14, 1, 1);
 Sensor::TemperatureSensor motTemp(A8);
 Sensor::TemperatureSensor pcbTemp(A3);
-Sensor::SensorManager manager(sensorCount, time_per_callback);
 
-//  tick and callback rates
-const int time_per_tick = 100;
-const int time_per_callback = 1000;
-
-//  Initialise sensor manager with the number of sensors and callback rate
 bool sdStatus = false; //  Status of the SD card reader and radio
 
 //  Called for any error messages that occur
