@@ -118,8 +118,7 @@ void setup() {
 
     //  Start serial
     Serial.begin(115200);
-
-    // Start I2C for LCD
+    // Start I2C for screen
     //Wire.begin();
     
     //  Set the clock up and add it to the sensor manager
@@ -151,6 +150,9 @@ void setup() {
     //  Set the report callback
     manager.setReportCallback(&reportCallback);
 
+    // Set the LED command callback
+    manager.setSendLEDCommand(&sendLEDCommand);
+
     //  Start the SD card reader and check it started correctly
     sdStatus = SD.begin(SD_CS);
     CHECK(sdStatus == true, "SD initialisation failed.");
@@ -163,8 +165,6 @@ void setup() {
     if(txtFile) {
       txtFile.println("clock,pitBut,voltage,current,motTemp,pcbTemp");
     }
-
-
 
     //  I can't remember how the radio reset pin works, but it do
     delay(100);
@@ -189,6 +189,10 @@ void setup() {
 
     //  Handle any errors that occured, by calling the error callback function
     HANDLE_ERRS(errorCallback);
+    // LED test initialisation
+    sendLEDCommand(1,8);
+    sendLEDCommand(2,8);
+    sendLEDCommand(3,8);
 }
 
 void loop() {
@@ -227,7 +231,12 @@ void reportCallback(double* results) {
     txtFile.flush();
 }
 
-
+void sendLEDCommand(int ledNumber, int state) {
+  Wire.beginTransmission(8); // Address of the Uno slave
+  Wire.write(ledNumber);     // Send LED number
+  Wire.write(state);         // Send state
+  Wire.endTransmission();
+}
 
 
 

@@ -25,20 +25,55 @@ void receiveEvent(int howMany) {
     uint32_t color;
     switch (ledNumber) {
       case 1:
-        color = state ? strip.Color(255, 255, 0) : strip.Color(0, 0, 0); // Yellow for blink
-        strip.setPixelColor(0, color);
-        strip.show();
-        delay(50);
-        strip.setPixelColor(0, strip.Color(255,0,255));
+        switch (state) {
+          case 0: // off state
+            color = strip.Color(0,0,0);
+            break;
+          case 1: // regular data log indicator
+            color = strip.Color(0,0,255);
+            break;
+          case 2: // fault inject indicator
+            color = strip.Color(255,0,255);
+            break;
+          case 8: // startup colour
+            color = strip.Color(255,102,178);
+        }
+        strip.setPixelColor(0, color); 
         strip.show();
         break;
       case 2:
-        color = state ? strip.Color(255, 0, 0) : strip.Color(0, 0, 0); // Red for fault
-        strip.setPixelColor(1, color);
+        switch (state) {
+          case 0: // off state
+            color = strip.Color(0,0,0);
+            break;
+          case 1: // regular data log indicator
+            color = strip.Color(0,0,255);
+            break;
+          case 2: // fault inject indicator
+            color = strip.Color(255,0,255);
+            break;
+          case 8:
+            color = strip.Color(255,102,178);
+        }
+        strip.setPixelColor(1, color); 
+        strip.show();
         break;
       case 3:
-        color = state ? strip.Color(0, 255, 0) : strip.Color(0, 0, 0); // Green for switch
-        strip.setPixelColor(2, color);
+        switch (state) {
+          case 0: // off state
+            color = strip.Color(0,0,0);
+            break;
+          case 1: // regular data log indicator
+            color = strip.Color(0,0,255);
+            break;
+          case 2: // fault inject indicator
+            color = strip.Color(255,0,255);
+            break;
+          case 8:
+            color = strip.Color(255,102,178);
+        }
+        strip.setPixelColor(2, color); 
+        strip.show();
         break;
     }
     strip.show(); // Update strip to match
