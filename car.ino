@@ -89,6 +89,7 @@ void setup() {
     }
     delay(100);
     HANDLE_ERRS(errorCallback);//  Handle any errors that occured, by calling the error callback function
+    
     // LED test initialisation
     sendLEDCommand(1,8);
     sendLEDCommand(2,8);
