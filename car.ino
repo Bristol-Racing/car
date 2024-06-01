@@ -2,7 +2,6 @@
 // 
 
 #include <SPI.h>
-#include <RH_RF95.h>
 #include <SD.h>
 #include <Wire.h> 
 #include <RTClib.h>
@@ -37,9 +36,7 @@ const int time_per_callback = 1000;
 
 //  Initialise sensor manager with the number of sensors and callback rate
 Sensor::SensorManager manager(sensorCount, time_per_callback);
-
-//  Status of the SD card reader and radio
-bool sdStatus = false;
+bool sdStatus = false; //  Status of the SD card reader and radio
 
 //  Called for any error messages that occur
 void errorCallback(char* message) {
@@ -54,7 +51,6 @@ void errorCallback(char* message) {
 
 void setup() {
     Serial.begin(115200);
-    
     //  Set the clock up and add it to the sensor manager
     clock.setup();
     clock.setReportRate(1000);
