@@ -43,37 +43,28 @@ void errorCallback(char* message) {
 
 void setup() {
     Serial.begin(115200);
-    //  Set the clock up and add it to the sensor manager
-    clock.setup();
+    clock.setup();                  //  Set the clock up and add it to the sensor manager
     clock.setReportRate(1000);
     manager.addSensor(&clock);
 
-    //  Add the pit confirm push button to the manager
-    pitBut.setReportRate(1000);
+    pitBut.setReportRate(1000);     //  Add the pit confirm push button to the manager
     manager.addSensor(&pitBut);
 
-    //  Add the high (24ish V) battery voltage sensor to the manager
-    batVolt.setReportRate(1000);
+    batVolt.setReportRate(1000);    //  Add the high (24ish V) battery voltage sensor to the manager
     manager.addSensor(&batVolt);
 
-    //  Add the current sensor to the manager
-    current.setReportRate(1000);
+    current.setReportRate(1000);    //  Add the current sensor to the manager
     current.setup();
     manager.addSensor(&current);
 
-    //  Add the motor temperature sensor to the manager
-    motTemp.setReportRate(1000);
+    motTemp.setReportRate(1000);    //  Add the motor temperature sensor to the manager
     manager.addSensor(&motTemp);
 
-    //  Add the PCB temperature sensor to the manager
-    pcbTemp.setReportRate(1000);
-    manager.addSensor(&pcbTemp);
+    pcbTemp.setReportRate(1000);    //  Add the PCB temperature sensor to the manager
+    manager.addSensor(&pcbTemp); 
 
-    //  Set the report callback
-    manager.setReportCallback(&reportCallback);
-
-    // Set the LED command callback
-    manager.setSendLEDCommand(&sendLEDCommand);
+    manager.setReportCallback(&reportCallback); //  Set the report callback
+    manager.setSendLEDCommand(&sendLEDCommand); // Set the LED command callback
 
     //  Start the SD card reader and check it started correctly
     sdStatus = SD.begin(SD_CS);
@@ -89,7 +80,7 @@ void setup() {
     }
     delay(100);
     HANDLE_ERRS(errorCallback);//  Handle any errors that occured, by calling the error callback function
-    
+
     // LED test initialisation
     sendLEDCommand(1,8);
     sendLEDCommand(2,8);
