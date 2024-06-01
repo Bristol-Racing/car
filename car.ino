@@ -72,6 +72,9 @@ void setup() {
     //  Set the report callback
     manager.setReportCallback(&reportCallback);
 
+    // Set the LED command callback
+    manager.setSendLEDCommand(&sendLEDCommand);
+
     //  Start the SD card reader and check it started correctly
     sdStatus = SD.begin(SD_CS);
     CHECK(sdStatus == true, "SD initialisation failed.");
@@ -86,6 +89,10 @@ void setup() {
     }
     delay(100);
     HANDLE_ERRS(errorCallback);//  Handle any errors that occured, by calling the error callback function
+    // LED test initialisation
+    sendLEDCommand(1,8);
+    sendLEDCommand(2,8);
+    sendLEDCommand(3,8);
 }
 
 void loop() {
@@ -110,3 +117,13 @@ void reportCallback(double* results) {
     txtFile.println();
     txtFile.flush();
 }
+
+void sendLEDCommand(int ledNumber, int state) {
+  Wire.beginTransmission(8); // Address of the Uno slave
+  Wire.write(ledNumber);     // Send LED number
+  Wire.write(state);         // Send state
+  Wire.endTransmission();
+}
+
+
+

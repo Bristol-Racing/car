@@ -25,20 +25,61 @@ void receiveEvent(int howMany) {
     uint32_t color;
     switch (ledNumber) {
       case 1:
-        color = state ? strip.Color(255, 255, 0) : strip.Color(0, 0, 0); // Yellow for blink
+        switch (state) {
+          case 0: // Off state
+            color = strip.Color(0,0,0);
+            break;
+          case 1: // SD logging state
+            color = strip.Color(0,0,255);
+            break;
+          case 2: // Fault injection state
+            color = strip.Color(255,0,0);
+            break;
+          case 8: // Startup state
+            color = strip.Color(128,0,128);
+            break;
+        }
         strip.setPixelColor(0, color);
-        strip.show();
-        delay(50);
-        strip.setPixelColor(0, strip.Color(255,0,255));
         strip.show();
         break;
       case 2:
-        color = state ? strip.Color(255, 0, 0) : strip.Color(0, 0, 0); // Red for fault
+        switch (state) {
+          case 0: // Off state
+            color = strip.Color(0,0,0);
+            break;
+          case 1: // Good temp state
+            color = strip.Color(0,255,0);
+            break;
+          case 2: // Medium temp state
+            color = strip.Color(255,191,0);
+            break;
+          case 3: // Bad temp state
+            color = strip.Color(255,0,0);
+            break;
+          case 8: // Startup state
+            color = strip.Color(128,0,128);
+            break;
+        }
         strip.setPixelColor(1, color);
+        strip.show();
         break;
       case 3:
-        color = state ? strip.Color(0, 255, 0) : strip.Color(0, 0, 0); // Green for switch
+        switch (state) {
+          case 0: // Off state
+            color = strip.Color(0,0,0);
+            break;
+          case 1: // Button on
+            color = strip.Color(0,255,0);
+            break;
+          case 2: // Fault injection state
+            color = strip.Color(255,0,0);
+            break;
+          case 8: // Startup state
+            color = strip.Color(128,0,128);
+            break;
+        }
         strip.setPixelColor(2, color);
+        strip.show();
         break;
     }
     strip.show(); // Update strip to match
