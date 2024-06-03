@@ -1,5 +1,10 @@
-// Car main script
-// 
+/****************************************************************************************************************************************************
+*                                                                                                                                                   *                                                                                                         *
+*   Car main script
+*                                                                                                                                                   *
+*   
+*
+****************************************************************************************************************************************************/
 
 #include <SD.h>
 #include <Wire.h> 
@@ -14,7 +19,7 @@
 
 #define SD_CS 14  //  SD card reader pin
 const char filename[] = "log.csv";//  SD card filename
-File txtFile;//  File written to the SD card
+File txtFile;     //  File written to the SD card
 
 //  Initialise the sensors with their calibration values
 int sensorCount = 6;
