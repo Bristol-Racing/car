@@ -1,6 +1,5 @@
 #include <Wire.h>
 #include <Adafruit_NeoPixel.h>
-
 #define PIN            6     // Pin where NeoPixel is connected
 #define NUMPIXELS      3     // Number of NeoPixels in the strip
 
